@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VR 桌面任務提示偏好問卷</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+/* 版面：單欄分頁問卷，頂部固定進度列；每頁以 16:9 影片為視覺重心 */
+:root{
+  --bg:#eef0f3;
+  --surface:#ffffff;
+  --ink:#1c2531;
+  --muted:#5a6676;
+  --line:#d2d8e0;
+  --accent:#34507f;
+  --accent-ink:#ffffff;
+  --mark:#d9a400;
+  --warn:#b8402f;
+  --ok:#2f7a4f;
+  --font-display:"Noto Serif TC","Songti TC",serif;
+  --font-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12171e;--surface:#1a212b;--ink:#e6ebf1;--muted:#9aa6b5;--line:#2d3746;
+  --accent:#8fb0ea;--accent-ink:#0f1620;--mark:#f2c230;--warn:#ec7a66;--ok:#6cc392;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171e;--surface:#1a212b;--ink:#e6ebf1;--muted:#9aa6b5;--line:#2d3746;
+  --accent:#8fb0ea;--accent-ink:#0f1620;--mark:#f2c230;--warn:#ec7a66;--ok:#6cc392;color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
+.bar-in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.bar-title{font-size:13px;color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-step{font-family:var(--font-mono);font-size:13px;color:var(--accent);font-variant-numeric:tabular-nums}
+.track{height:3px;background:var(--line);max-width:720px;margin:8px auto 0;border-radius:2px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+
+main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
+.page{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1,h2{font-family:var(--font-display);text-wrap:balance;line-height:1.35;margin:0}
+h1{font-size:28px}
+h2{font-size:24px}
+p{margin:0}
+.lead{color:var(--muted)}
+.small{font-size:14px;color:var(--muted)}
+.eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;color:var(--accent)}
+.consent{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:500}
+.check{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-weight:500}
+.check input{width:20px;height:20px;margin-top:4px;accent-color:var(--accent);flex:none}
+
+fieldset{border:0;margin:0;padding:0;min-width:0}
+.q{display:flex;flex-direction:column;gap:10px;padding-top:18px;border-top:1px solid var(--line)}
+.q legend{font-weight:500;padding:0;margin-bottom:10px;float:left;width:100%}
+.q legend + *{clear:both}
+.qno{font-family:var(--font-mono);font-size:13px;color:var(--accent);margin-right:8px}
+.req{color:var(--warn);margin-left:2px}
+.choices{display:flex;flex-wrap:wrap;gap:8px}
+.chip{position:relative}
+.chip input{position:absolute;opacity:0;inset:0;margin:0}
+.chip span{display:block;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);cursor:pointer;font-size:15px}
+.chip input:checked+span{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.chip input:focus-visible+span{outline:2px solid var(--mark);outline-offset:2px}
+
+.likert{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.likert label{position:relative}
+.likert input{position:absolute;opacity:0;inset:0;margin:0}
+.likert span{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;padding:4px 2px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer;text-align:center}
+.likert span b{font-family:var(--font-mono);font-weight:500;font-size:16px}
+.likert span small{font-size:11px;color:var(--muted);line-height:1.3}
+.likert input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.likert input:checked+span small{color:var(--accent-ink)}
+.likert input:focus-visible+span{outline:2px solid var(--mark);outline-offset:2px}
+
+.video{background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.video video{display:block;width:100%;max-width:100%;aspect-ratio:16/9;height:auto;background:#000}
+.vcap{display:flex;gap:12px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.vstatus{font-size:14px;color:var(--muted)}
+.vstatus.done{color:var(--ok)}
+.sound{display:inline-block;font-size:13px;padding:2px 10px;border-radius:999px;border:1px solid var(--mark);color:var(--ink)}
+.locked{opacity:.45;pointer-events:none}
+
+textarea{width:100%;box-sizing:border-box;min-height:100px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;padding:10px 12px;resize:vertical}
+textarea:focus-visible{outline:2px solid var(--mark);outline-offset:1px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{position:relative;display:flex;flex-direction:column;gap:0;border:2px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface);cursor:pointer;padding:0;font:inherit;color:var(--ink);text-align:left}
+.tile img{display:block;width:100%;max-width:100%;aspect-ratio:16/9;object-fit:cover}
+.tile .tl{padding:6px 10px;font-size:14px}
+.tile .tl b{font-family:var(--font-mono);font-weight:500;color:var(--accent);margin-right:4px}
+.tile .badge{position:absolute;top:6px;left:6px;min-width:28px;height:28px;border-radius:14px;padding:0 8px;display:flex;align-items:center;justify-content:center;
+  background:var(--accent);color:var(--accent-ink);font-family:var(--font-mono);font-size:13px}
+.tile.sel{border-color:var(--accent)}
+.tile.worst{border-color:var(--warn)}
+.tile.worst .badge{background:var(--warn);color:#fff}
+.tile:disabled{opacity:.35;cursor:not-allowed}
+.tile:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+.picked{display:flex;flex-wrap:wrap;gap:8px;font-size:14px}
+.picked span{border:1px solid var(--line);border-radius:999px;padding:3px 12px;background:var(--surface)}
+
+.nav{display:flex;gap:12px;align-items:center;padding-top:6px}
+button.btn{font:inherit;font-weight:500;border-radius:10px;padding:10px 20px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);margin-left:auto}
+button.btn:disabled{opacity:.5;cursor:wait}
+button.btn:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+.err{color:var(--warn);font-size:14px}
+.note{border-left:3px solid var(--mark);padding:4px 0 4px 12px;font-size:14px;color:var(--muted)}
+.linkbtn{background:none;border:0;padding:0;font:inherit;font-size:14px;color:var(--accent);text-decoration:underline;cursor:pointer}
+
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.n,th.n{font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right}
+th{color:var(--muted);font-weight:500}
+.barcell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.minibar{width:60px;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.minibar i{display:block;height:100%;background:var(--accent)}
+@media (prefers-reduced-motion:reduce){.track i{transition:none}}
+</style>
+
+</head>
+<body>
+<div class="bar">
+  <div class="bar-in"><span class="bar-title">VR 桌面任務提示偏好問卷（前測 1.1）</span><span class="bar-step" id="stepLabel"></span></div>
+  <div class="track"><i id="trackFill"></i></div>
+</div>
+<main><form id="survey" novalidate><div class="page" id="page"></div></form></main>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
