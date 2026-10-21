@@ -45,7 +45,7 @@ const A = [
 ];
 
 const ENDPOINT = (window.SURVEY_ENDPOINT || "").trim();
-const DRAFT_KEY = "pretest11-v2-draft", DONE_KEY = "pretest11-v2-done";
+const DRAFT_KEY = "pretest11-v3-draft", DONE_KEY = "pretest11-v2-done";
 
 // 語意差異題的版面（只在這個版本用到，所以放在這裡）
 document.head.insertAdjacentHTML("beforeend", `<style>
@@ -63,9 +63,11 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .sd-row input:focus-visible+span{outline:2px solid var(--mark);outline-offset:2px}
 .howto{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--muted)}
 .catopt{display:flex;flex-direction:column;gap:10px}
-.catopt label{display:flex;gap:12px;align-items:flex-start;border:2px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface);cursor:pointer}
-.catopt label:has(input:checked){border-color:var(--accent)}
-.catopt input{width:20px;height:20px;margin-top:3px;accent-color:var(--accent);flex:none}
+.catopt button{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;font:inherit;color:var(--ink);border:2px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface);cursor:pointer}
+.catopt button.on{border-color:var(--accent)}
+.catopt button:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+.catopt .rk{width:32px;height:32px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:14px;border:1.5px dashed var(--line);color:var(--muted)}
+.catopt button.on .rk{background:var(--accent);border:0;color:var(--accent-ink)}
 .catopt .cn{font-weight:700}
 .catopt .cd{font-size:14px;color:var(--muted)}
 .catopt .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
@@ -77,7 +79,7 @@ document.title = "VR 物件操作提示偏好問卷";
 document.querySelector(".bar-title").textContent = "VR 物件操作提示偏好問卷（前測 1.1）";
 
 const rid = () => "R" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase();
-const fresh = () => ({id:rid(), consent:false, profile:{}, ratings:{}, watched:{}, best:null, why:"", other:"",
+const fresh = () => ({id:rid(), consent:false, profile:{}, ratings:{}, watched:{}, rank:[], why:"", other:"",
   startedAt:new Date().toISOString(), pageTimes:{}, step:0});
 
 let S;
@@ -153,11 +155,13 @@ function render(){
   }
   if(p==="final"){
     h=`<span class="eyebrow">第四部分</span><h2>最後三題</h2>
-    <fieldset class="q"><legend><span class="qno">D1</span>在 5 類提示中，您最喜歡哪一類？<span class="req">*</span></legend>
-      <div class="catopt">${CATS.map(c=>`<label><input type="radio" name="best" id="best-${c.id}" value="${c.id}" ${S.best===c.id?"checked":""}>
+    <fieldset class="q"><legend><span class="qno">D1</span>請依您的喜好，排列 5 類提示的順序。<span class="req">*</span></legend>
+      <p class="small">從最喜歡的開始，依序點選，點選順序就是第 1～5 名；再點一次可以取消。</p>
+      <div class="catopt">${CATS.map(c=>{const r=S.rank.indexOf(c.id);return `<button type="button" class="${r>=0?"on":""}" data-cat="${c.id}" aria-pressed="${r>=0}">
+        <span class="rk">${r>=0?r+1:"＋"}</span>
         <span><span class="cn">${c.name}</span>　<span class="cd">${c.cues.map(id=>P[id].name).join("、")}</span>
-        <span class="thumbs">${c.cues.map(id=>`<img src="${tsrc(id)}" alt="">`).join("")}</span></span></label>`).join("")}</div></fieldset>
-    <fieldset class="q"><legend><span class="qno">D2</span>為什麼最喜歡這一類？<span class="req">*</span></legend>
+        <span class="thumbs">${c.cues.map(id=>`<img src="${tsrc(id)}" alt="">`).join("")}</span></span></button>`;}).join("")}</div></fieldset>
+    <fieldset class="q"><legend><span class="qno">D2</span>為什麼您把「${S.rank[0]?catById[S.rank[0]].name:"第 1 名"}」排在第 1 名？<span class="req">*</span></legend>
       <textarea id="why" placeholder="例如：一眼就知道要放哪一格，也不會擋住積木">${esc(S.why)}</textarea></fieldset>
     <fieldset class="q"><legend><span class="qno">D3</span>您覺得還有哪些提示方式或組合，可以幫助您完成這個任務？（選填）</legend>
       <textarea id="other" placeholder="例如：高亮加上語音">${esc(S.other)}</textarea></fieldset>
@@ -189,7 +193,7 @@ function validate(p){
     if(miss.length) return `「${miss.map(id=>P[id].name).join("」「")}」還有題目沒有作答。`;
   }
   if(p==="final"){
-    if(!S.best) return "D1 請選出最喜歡的一類。";
+    if(S.rank.length<CATS.length) return "D1 請把 5 類都排上名次。";
     if(!S.why.trim()) return "D2 請簡單說明原因。";
   }
   return true;
@@ -200,7 +204,6 @@ function bind(p){
   $("consent")?.addEventListener("change",e=>{S.consent=e.target.checked;saveDraft();});
   pageEl.querySelectorAll('input[type=radio]').forEach(inp=>inp.addEventListener("change",()=>{
     if(p==="profile") S.profile[inp.name]=inp.value;
-    else if(inp.name==="best") S.best=inp.value;
     else { const [id,k]=inp.name.split("_"); (S.ratings[id] ||= {})[k]=Number(inp.value); }
     saveDraft();
   }));
@@ -213,6 +216,11 @@ function bind(p){
       const st=$("vs-"+id); st.textContent="已看完，可重播"; st.classList.add("done");
     });
   });
+  pageEl.querySelectorAll("[data-cat]").forEach(b=>b.addEventListener("click",()=>{
+    const id=b.dataset.cat, i=S.rank.indexOf(id);
+    if(i>=0) S.rank.splice(i,1); else S.rank.push(id);
+    saveDraft(); const y=window.scrollY; render(); window.scrollTo(0,y);
+  }));
   $("why")?.addEventListener("input",e=>{S.why=e.target.value;saveDraft();});
   $("other")?.addEventListener("input",e=>{S.other=e.target.value;saveDraft();});
   $("prev")?.addEventListener("click",()=>{step--;S.step=step;saveDraft();render();});
@@ -236,7 +244,7 @@ function bind(p){
 // 一份問卷 = 試算表的一列，欄位順序固定
 function row(){
   const r = {
-    "問卷版本": "1.1-v2",
+    "問卷版本": "1.1-v3",
     "受測者編號": S.id,
     "送出時間": new Date().toISOString(),
     "開始時間": S.startedAt,
@@ -244,7 +252,9 @@ function row(){
   };
   for(const q of A) r[q.k] = S.profile[q.k] ?? "";
   for(const C of CATS) for(const id of C.cues) for(const it of U) r[`${id}_${it.k}`] = S.ratings[id]?.[it.k] ?? "";
-  r["D1_最喜歡的類別"] = S.best ? catById[S.best].name : "";
+  // D1 排名：依名次列出類別，再列出每一類的名次（方便算平均名次）
+  for(let i=0;i<CATS.length;i++) r[`D1_第${i+1}名`] = S.rank[i] ? catById[S.rank[i]].name : "";
+  for(const c of CATS){ const i=S.rank.indexOf(c.id); r[`名次_${c.name}`] = i>=0 ? i+1 : ""; }
   r["D2_原因"] = S.why.trim();
   r["D3_其他建議"] = S.other.trim();
   r["各頁秒數"] = JSON.stringify(S.pageTimes);
