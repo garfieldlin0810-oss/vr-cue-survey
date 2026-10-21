@@ -60,10 +60,14 @@ window.SURVEY_ENDPOINT = "https://script.google.com/macros/s/AKfycb.../exec";
 - **換影片**：用相同檔名（例如 `p07.mp4`）重新上傳覆蓋即可。
 - **重新部署 Apps Script**：如果改了 `Code.gs`，要用「部署 → 管理部署作業 → 編輯 → 版本選『新版本』」，網址才會維持不變。
 
-## 資料欄位說明
+## 資料欄位說明（第 2 版）
 
-- `P1_B1`～`P13_B5`：每種提示的 5 題原始分數（1～5）。**B4 是反向題，分析前請用 6 減去原始分數。**
-- `C1_第1名`～`C1_第3名`、`C2_最不喜歡`：填提示編號（P1～P13）。
-- `提示順序`：該受測者看到的隨機順序，可用來檢查順序效應。
+- 問卷分 5 類、每類一頁，依固定順序呈現：語音 → 傳統方式 → 過程演示 → 結果演示 → 自行探索。
+- `P1_U1`～`P13_U4`：每段影片的 UEQ-S 實用面 4 題原始分數（1～7）。U1 妨礙的－支持的、U2 複雜的－簡單的、U3 沒效率的－有效率的、U4 令人困惑的－清楚的。分析時減 4 換成 −3～+3，4 題平均即為「實用面分數」。
+- `D1_最喜歡的類別`：受測者最喜歡的類別名稱；`D2_原因`、`D3_其他建議`：開放題。
 - `各頁秒數`、`作答秒數`：可用來排除作答過快的問卷。
-- 同一台裝置填完後會顯示「已經填過」的提醒，但不會擋住重填；如有重複，可用「受測者編號」與「送出時間」判斷。
+- 從第 1 版換到第 2 版時，請先刪除試算表中舊的「回收資料」分頁，程式會依新欄位重新建立。
+
+## 題目來源
+
+- UEQ-S 實用面量表：Schrepp, M., Hinderks, A., & Thomaschewski, J. (2017). Design and evaluation of a short version of the User Experience Questionnaire (UEQ-S). *International Journal of Interactive Multimedia and Artificial Intelligence, 4*(6), 103–108. https://doi.org/10.9781/ijimai.2017.09.001
