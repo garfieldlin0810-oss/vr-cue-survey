@@ -1,4 +1,4 @@
-// 前測 1.1 問卷主程式（第 2 版：五類分頁、UEQ-S 實用面量表）。
+// 前測 1.1 問卷主程式（第 4 版：五類分頁、UEQ-S 實用面量表、D1 各類整體評分）。
 // 題目、影片與送出方式都在這個檔案裡；資料要送到哪裡，請改 config.js 裡的 SURVEY_ENDPOINT。
 
 const P = {
@@ -20,8 +20,8 @@ const P = {
 const CATS = [
   {id:"C1", name:"語音",     desc:"用聲音說明要放的位置",   cues:["P1"]},
   {id:"C2", name:"傳統方式", desc:"常見的媒體形式",         cues:["P2","P3","P4","P5"]},
-  {id:"C3", name:"過程演示", desc:"在場景中示範怎麼做",     cues:["P6","P7","P11"]},
-  {id:"C4", name:"結果演示", desc:"直接指出目標位置",       cues:["P8","P9","P10"]},
+  {id:"C3", name:"過程演示", desc:"在場景中示範怎麼做",     cues:["P7","P11"]},
+  {id:"C4", name:"結果演示", desc:"直接顯示目標或放好後的樣子", cues:["P6","P8","P9","P10"]},
   {id:"C5", name:"自行探索", desc:"一開始自己找，靠聲音或震動確認", cues:["P12","P13"]}
 ];
 const catById = Object.fromEntries(CATS.map(c=>[c.id,c]));
@@ -45,7 +45,7 @@ const A = [
 ];
 
 const ENDPOINT = (window.SURVEY_ENDPOINT || "").trim();
-const DRAFT_KEY = "pretest11-v3-draft", DONE_KEY = "pretest11-v2-done";
+const DRAFT_KEY = "pretest11-v4-draft", DONE_KEY = "pretest11-v2-done";
 
 // 語意差異題的版面（只在這個版本用到，所以放在這裡）
 document.head.insertAdjacentHTML("beforeend", `<style>
@@ -63,6 +63,11 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .sd-row input:focus-visible+span{outline:2px solid var(--mark);outline-offset:2px}
 .howto{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--muted)}
 .catopt{display:flex;flex-direction:column;gap:10px}
+.catrate{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--surface)}
+.catrate .cn{font-weight:700}
+.catrate .cd{font-size:14px;color:var(--muted)}
+.catrate .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0}
+.catrate .thumbs img{width:72px;height:auto;border-radius:4px;border:1px solid var(--line)}
 .catopt button{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;font:inherit;color:var(--ink);border:2px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface);cursor:pointer}
 .catopt button.on{border-color:var(--accent)}
 .catopt button:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
@@ -79,7 +84,7 @@ document.title = "VR 物件操作提示偏好問卷";
 document.querySelector(".bar-title").textContent = "VR 物件操作提示偏好問卷（前測 1.1）";
 
 const rid = () => "R" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase();
-const fresh = () => ({id:rid(), consent:false, profile:{}, ratings:{}, watched:{}, rank:[], why:"", other:"",
+const fresh = () => ({id:rid(), consent:false, profile:{}, ratings:{}, watched:{}, catRatings:{}, best:null, why:"", other:"",
   startedAt:new Date().toISOString(), pageTimes:{}, step:0});
 
 let S;
@@ -126,7 +131,7 @@ function render(){
       <p><b>任務情境</b>：想像您戴著 VR 頭戴式顯示器，桌上有一塊格狀底板和一塊紅色積木。系統會用提示告訴您，要把積木放到哪一格。</p>
       <p>接下來會依序介紹 5 類提示，共 13 段約 10 秒的影片。每段影片看完後，請依照您的第一印象回答 4 題。部分影片含有聲音，<b>建議配戴耳機</b>。</p>
       <p>答案沒有對錯，所有資料僅供學術研究使用，以匿名方式處理，您可以隨時停止填答。</p>
-      <div class="meta"><span>預估時間</span><b>約 10 分鐘</b><span>內容</span><b>基本資料 5 題、13 段影片各 4 題、最後 3 題</b></div>
+      <div class="meta"><span>預估時間</span><b>約 11 分鐘</b><span>內容</span><b>基本資料 5 題、13 段影片各 4 題、最後 3 題（含 5 類整體評分）</b></div>
       <label class="check"><input type="checkbox" id="consent" ${S.consent?"checked":""}><span>我已閱讀上述說明，同意參與本問卷</span></label>
     </div>
     ${nav("開始填答",false)}`;
@@ -155,14 +160,16 @@ function render(){
   }
   if(p==="final"){
     h=`<span class="eyebrow">第四部分</span><h2>最後三題</h2>
-    <fieldset class="q"><legend><span class="qno">D1</span>請依您的喜好，排列 5 類提示的順序。<span class="req">*</span></legend>
-      <p class="small">從最喜歡的開始，依序點選，點選順序就是第 1～5 名；再點一次可以取消。</p>
-      <div class="catopt">${CATS.map(c=>{const r=S.rank.indexOf(c.id);return `<button type="button" class="${r>=0?"on":""}" data-cat="${c.id}" aria-pressed="${r>=0}">
-        <span class="rk">${r>=0?r+1:"＋"}</span>
-        <span><span class="cn">${c.name}</span>　<span class="cd">${c.cues.map(id=>P[id].name).join("、")}</span>
-        <span class="thumbs">${c.cues.map(id=>`<img src="${tsrc(id)}" alt="">`).join("")}</span></span></button>`;}).join("")}</div></fieldset>
-    <fieldset class="q"><legend><span class="qno">D2</span>為什麼您把「${S.rank[0]?catById[S.rank[0]].name:"第 1 名"}」排在第 1 名？<span class="req">*</span></legend>
-      <textarea id="why" placeholder="例如：一眼就知道要放哪一格，也不會擋住積木">${esc(S.why)}</textarea></fieldset>
+    <fieldset class="q"><legend><span class="qno">D1</span>請針對以下 5 類提示，各做一次整體評分。<span class="req">*</span></legend>
+      <p class="howto">請回想同一類的影片，在每一列兩個相反的形容詞之間，依照您對這一類的整體印象點選一格。</p>
+      ${CATS.map((c,ci)=>`<div class="catrate">
+        <div><span class="qno">C${ci+1}</span><span class="cn">${c.name}</span>　<span class="cd">${c.cues.map(id=>P[id].name).join("、")}</span></div>
+        <div class="thumbs">${c.cues.map(id=>`<img src="${tsrc(id)}" alt="">`).join("")}</div>
+        <p class="small sd-lead">我覺得這一類提示整體來說是……</p>${U.map(it=>sd(c.id,it)).join("")}
+      </div>`).join("")}</fieldset>
+    <fieldset class="q"><legend><span class="qno">D2</span>您覺得哪一類最能幫助您完成任務？為什麼？<span class="req">*</span></legend>
+      <div class="choices">${CATS.map(c=>`<label class="chip"><input type="radio" name="best" id="best-${c.id}" value="${c.id}" ${S.best===c.id?"checked":""}><span>${c.name}</span></label>`).join("")}</div>
+      <textarea id="why" placeholder="請寫下原因，例如：一眼就知道要放哪一格，也不會擋住積木">${esc(S.why)}</textarea></fieldset>
     <fieldset class="q"><legend><span class="qno">D3</span>您覺得還有哪些提示方式或組合，可以幫助您完成這個任務？（選填）</legend>
       <textarea id="other" placeholder="例如：高亮加上語音">${esc(S.other)}</textarea></fieldset>
     ${nav("送出問卷")}`;
@@ -193,7 +200,9 @@ function validate(p){
     if(miss.length) return `「${miss.map(id=>P[id].name).join("」「")}」還有題目沒有作答。`;
   }
   if(p==="final"){
-    if(S.rank.length<CATS.length) return "D1 請把 5 類都排上名次。";
+    const missC=CATS.filter(c=>!U.every(it=>S.catRatings[c.id]?.[it.k]));
+    if(missC.length) return `D1「${missC.map(c=>c.name).join("」「")}」還有題目沒有作答。`;
+    if(!S.best) return "D2 請選出最能幫助您完成任務的一類。";
     if(!S.why.trim()) return "D2 請簡單說明原因。";
   }
   return true;
@@ -204,7 +213,8 @@ function bind(p){
   $("consent")?.addEventListener("change",e=>{S.consent=e.target.checked;saveDraft();});
   pageEl.querySelectorAll('input[type=radio]').forEach(inp=>inp.addEventListener("change",()=>{
     if(p==="profile") S.profile[inp.name]=inp.value;
-    else { const [id,k]=inp.name.split("_"); (S.ratings[id] ||= {})[k]=Number(inp.value); }
+    else if(inp.name==="best") S.best=inp.value;
+    else { const [id,k]=inp.name.split("_"); const box = id.startsWith("C") ? S.catRatings : S.ratings; (box[id] ||= {})[k]=Number(inp.value); }
     saveDraft();
   }));
   pageEl.querySelectorAll("video").forEach(v=>{
@@ -216,11 +226,6 @@ function bind(p){
       const st=$("vs-"+id); st.textContent="已看完，可重播"; st.classList.add("done");
     });
   });
-  pageEl.querySelectorAll("[data-cat]").forEach(b=>b.addEventListener("click",()=>{
-    const id=b.dataset.cat, i=S.rank.indexOf(id);
-    if(i>=0) S.rank.splice(i,1); else S.rank.push(id);
-    saveDraft(); const y=window.scrollY; render(); window.scrollTo(0,y);
-  }));
   $("why")?.addEventListener("input",e=>{S.why=e.target.value;saveDraft();});
   $("other")?.addEventListener("input",e=>{S.other=e.target.value;saveDraft();});
   $("prev")?.addEventListener("click",()=>{step--;S.step=step;saveDraft();render();});
@@ -244,7 +249,7 @@ function bind(p){
 // 一份問卷 = 試算表的一列，欄位順序固定
 function row(){
   const r = {
-    "問卷版本": "1.1-v3",
+    "問卷版本": "1.1-v4",
     "受測者編號": S.id,
     "送出時間": new Date().toISOString(),
     "開始時間": S.startedAt,
@@ -252,9 +257,13 @@ function row(){
   };
   for(const q of A) r[q.k] = S.profile[q.k] ?? "";
   for(const C of CATS) for(const id of C.cues) for(const it of U) r[`${id}_${it.k}`] = S.ratings[id]?.[it.k] ?? "";
-  // D1 排名：依名次列出類別，再列出每一類的名次（方便算平均名次）
-  for(let i=0;i<CATS.length;i++) r[`D1_第${i+1}名`] = S.rank[i] ? catById[S.rank[i]].name : "";
-  for(const c of CATS){ const i=S.rank.indexOf(c.id); r[`名次_${c.name}`] = i>=0 ? i+1 : ""; }
+  // D1 各類整體評分：C1_Q1～C5_Q4（原始分數 1～7），再加每一類 4 題的平均
+  CATS.forEach((c,ci)=>{
+    const vals=U.map(it=>S.catRatings[c.id]?.[it.k]);
+    U.forEach((it,qi)=>{ r[`C${ci+1}_Q${qi+1}`] = vals[qi] ?? ""; });
+    r[`C${ci+1}_平均`] = vals.every(v=>typeof v==="number") ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*100)/100 : "";
+  });
+  r["D2_最能幫助的類別"] = S.best ? catById[S.best].name : "";
   r["D2_原因"] = S.why.trim();
   r["D3_其他建議"] = S.other.trim();
   r["各頁秒數"] = JSON.stringify(S.pageTimes);
