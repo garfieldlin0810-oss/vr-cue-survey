@@ -49,6 +49,7 @@ const DRAFT_KEY = "pretest11-v4-draft", DONE_KEY = "pretest11-v2-done";
 
 // 語意差異題的版面（只在這個版本用到，所以放在這裡）
 document.head.insertAdjacentHTML("beforeend", `<style>
+.cue{display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
 .cue h3{margin:0;font-size:19px;display:flex;gap:8px;align-items:baseline}
 .cue h3 .qno{font-size:14px}
 .ueq{display:flex;flex-direction:column;gap:6px;width:100%;padding:10px 0;border-top:1px solid var(--line)}
@@ -118,7 +119,7 @@ function render(){
   const p = pages[step];
   const cIdx = p.startsWith("c:") ? CATS.findIndex(c=>c.id===p.slice(2))+1 : 0;
   document.getElementById("stepLabel").textContent =
-    p==="intro"?"說明":p==="profile"?"基本資料":p==="final"?"最後一題":p==="done"?"完成":`第 ${cIdx} 類 / 共 ${CATS.length} 類`;
+    p==="intro"?"說明":p==="profile"?"基本資料":p==="final"?"最後三題":p==="done"?"完成":`第 ${cIdx} 類 / 共 ${CATS.length} 類`;
   document.getElementById("trackFill").style.width = `${step/(pages.length-1)*100}%`;
   let h="";
   if(p==="intro"){
